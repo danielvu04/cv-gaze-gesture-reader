@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Jupyter (if ever used)
+.ipynb_checkpoints/
+
+# --- Build artifacts (PyInstaller, py2exe, cx_Freeze) ---
+build/
+dist/
+*.spec
+
+# C extensions
+*.so
+*.dll
+*.dylib
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary / cache folders
+.cache/
+tmp/
+temp/
+
+# OCR / Tesseract
+tessdata/*
+!tessdata/eng.traineddata 
+
+# Generated data 
+*.txt~
+*.tmp

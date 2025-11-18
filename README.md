@@ -1,8 +1,8 @@
-# Smart Reading Assistant with Computer Vision
+# Smart Reading Assistant
 
 ### Team Name: DJT
 
-**Course:** CSCI 5561 – Computer Vision  
+**Course:** CSCI 5561 - Computer Vision  
 **Semester:** Fall 2025  
 **Instructor:** Prof. Karthik Desingh  
 **University of Minnesota – Twin Cities**
@@ -11,12 +11,11 @@
 
 ## Project Overview
 The **Smart Reading Assistant** is a computer vision–based system that enables **hands-free and intuitive interaction with digital text** using **gaze tracking** and **hand gesture recognition**.  
-By leveraging webcam input and state-of-the-art CV models, the system detects where the user is looking and recognizes specific gestures to control scrolling, highlighting, or reading focus — improving accessibility and user experience.
+By leveraging webcam input and CV models, the system detects where the user is looking and recognizes specific gestures to control scrolling, highlighting, or reading focus, improving accessibility and user experience.
 
 **Core Goals**
 - Detect user **gaze direction** to identify on-screen reading focus.  
-- Recognize **hand gestures** (e.g., swipe, pinch) to enable scrolling or selection.  
-- Integrate both modalities for **multimodal interaction**.  
+- Recognize **hand gestures** (pinch + swipe) to enable scrolling or selection.  
 - Evaluate performance on benchmark datasets and custom test cases.  
 
 ---
@@ -41,8 +40,39 @@ By leveraging webcam input and state-of-the-art CV models, the system detects wh
 
 ---
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 1. **Clone Repository**
    ```bash
    git clone https://github.com/danielvu04/cv-gaze-gesture-reader/.git
    cd cv-gaze-gesture-reader
+
+2. Create a virtual Python environment (Python 3.10).
+```powershell
+python3.10 -m venv .venv
+.venv\Scripts\activate    
+```
+
+3. Install dependencies:
+
+```powershell
+python -m pip install opencv-python mediapipe numpy mss pytesseract pyautogui PyQt5 
+```
+
+4. Make sure `tesseract` is installed and on PATH (or set `pytesseract.pytesseract.tesseract_cmd`).
+
+5. (Optional) Set `OPENAI_API_KEY` for summaries:
+
+```powershell
+$env:OPENAI_API_KEY = "sk-..."
+```
+
+6. Run:
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+### Update exe file
+```powershell
+pyinstaller main.spec
+```
