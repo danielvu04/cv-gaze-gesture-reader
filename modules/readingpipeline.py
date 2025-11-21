@@ -4,7 +4,6 @@ import pyautogui
 import cv2
 
 from PyQt5.QtCore import QThread, pyqtSignal, QCoreApplication
-
 from modules.gaze import GazeTracker
 from modules.gestures import GestureRecognizer
 from modules.ocr import extract_text_from_region, summarize_text
@@ -26,6 +25,9 @@ class ReadingPipeline(QThread):
         super().__init__(parent)
         self.monitor_index = monitor_index
         self.running = True
+
+        self.smooth_gaze_screen = None  # Initial smoothed point
+        self.alpha = 0.7  # Smoothing factor: 0.0=full lag, 1.0=no smooth (tune 0.6-0.8 for gaze)
         self.metrics = MetricsTracker()
 
         # Track how long open palm has been held (for exit gesture)
@@ -83,7 +85,23 @@ class ReadingPipeline(QThread):
             # Gaze
             gaze_cam = gaze_tracker.process(cam_frame)
             gaze_screen = apply_affine(M, gaze_cam)
-            fusion.update_gaze(gaze_screen)
+            # fusion.update_gaze(gaze_screen)
+            if gaze_screen is not None:
+                if self.smooth_gaze_screen is None:
+                    self.smooth_gaze_screen = gaze_screen  # First point
+                else:
+                    # EMA: new = alpha * current + (1-alpha) * previous
+                    prev_x, prev_y = self.smooth_gaze_screen
+                    curr_x, curr_y = gaze_screen
+                    smooth_x = self.alpha * curr_x + (1 - self.alpha) * prev_x
+                    smooth_y = self.alpha * curr_y + (1 - self.alpha) * prev_y
+                    self.smooth_gaze_screen = (int(smooth_x), int(smooth_y))
+                fusion.update_gaze(self.smooth_gaze_screen)  # Use smoothed for regions
+                self.gazeUpdated.emit(self.smooth_gaze_screen)  # Emit smoothed to overlay
+            else:
+                self.smooth_gaze_screen = None  # Reset on loss
+                fusion.update_gaze(None)
+                self.gazeUpdated.emit(None)
 
             active_index = fusion.active_index if fusion.active_index is not None else -1
             self.gazeUpdated.emit(gaze_screen)
@@ -98,7 +116,7 @@ class ReadingPipeline(QThread):
             else:
                 self.open_palm_frames = 0
 
-            EXIT_HOLD_FRAMES = 30
+            EXIT_HOLD_FRAMES = 60
             if self.open_palm_frames >= EXIT_HOLD_FRAMES:
                 print("Open palm held - exiting.")
                 self.running = False
