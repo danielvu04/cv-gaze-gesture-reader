@@ -55,14 +55,14 @@ python3.10 -m venv .venv
 3. Install dependencies:
 
 ```powershell
-python -m pip install opencv-python mediapipe numpy mss pytesseract pyautogui PyQt5 
+python -m pip install opencv-python mediapipe numpy mss pytesseract pyautogui PyQt5 openai
 ```
 
 4. Make sure `tesseract` is installed and on PATH (or set `pytesseract.pytesseract.tesseract_cmd`).
 
-Download Link: 
-All OS: https://tesseract-ocr.github.io/tessdoc/Installation.html
-Windows: https://github.com/UB-Mannheim/tesseract/wiki
+Download Link:  
+All OS: https://tesseract-ocr.github.io/tessdoc/Installation.html  
+Windows: https://github.com/UB-Mannheim/tesseract/wiki  
 
 5. (Optional) Set `OPENAI_API_KEY` for summaries:
 

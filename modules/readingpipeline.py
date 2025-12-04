@@ -8,9 +8,9 @@ from modules.gaze import GazeTracker
 from modules.gestures import GestureRecognizer
 from modules.ocr import extract_text_from_region, summarize_text
 from modules.fusion import FusionEngine
-from modules.screencap import ScreenCapture
 from modules.metrics import MetricsTracker
-from modules.layout import create_screen_regions
+from modules.screencap import ScreenCapture 
+from modules.layout import detect_text_regions, create_fallback_regions  
 from modules.calibration import run_calibration, apply_affine
 
 
@@ -51,15 +51,17 @@ class ReadingPipeline(QThread):
         screen_frame = screen.grab()
         sh, sw, _ = screen_frame.shape
 
-        # 4. Define reading regions + fusion
-        regions = create_screen_regions(sw, sh)
+        # 4. Define ADAPTIVE reading regions + fusion (based on initial OCR)
+        regions = detect_text_regions(screen_frame)  # New: Dynamic detection
+        if not regions:  # Fallback if no text
+            regions = create_fallback_regions(sw, sh)
         fusion = FusionEngine(regions)
 
         # 5. Initialize trackers
         gaze_tracker = GazeTracker()
         gesture_recognizer = GestureRecognizer()
 
-        # Send initial regions to UI
+        # Send initial regions to UI (summaries empty)
         simple_regions = [(r.bbox, r.summary) for r in regions]
         self.regionsDefined.emit(simple_regions)
 
@@ -82,15 +84,14 @@ class ReadingPipeline(QThread):
 
             screen_frame = screen.grab()
 
-            # Gaze
+            # Gaze (unchanged)
             gaze_cam = gaze_tracker.process(cam_frame)
             gaze_screen = apply_affine(M, gaze_cam)
-            # fusion.update_gaze(gaze_screen)
             if gaze_screen is not None:
                 if self.smooth_gaze_screen is None:
                     self.smooth_gaze_screen = gaze_screen  # First point
                 else:
-                    # EMA: new = alpha * current + (1-alpha) * previous
+                    # EMA smoothing
                     prev_x, prev_y = self.smooth_gaze_screen
                     curr_x, curr_y = gaze_screen
                     smooth_x = self.alpha * curr_x + (1 - self.alpha) * prev_x
@@ -104,7 +105,6 @@ class ReadingPipeline(QThread):
                 self.gazeUpdated.emit(None)
 
             active_index = fusion.active_index if fusion.active_index is not None else -1
-            self.gazeUpdated.emit(gaze_screen)
             self.activeRegionChanged.emit(active_index)
 
             # Gestures
@@ -123,42 +123,44 @@ class ReadingPipeline(QThread):
                 QCoreApplication.quit()
                 break
 
-            # 2) Scroll: pinch + swipe
-            #    swipe up  -> scroll down
-            #    swipe down -> scroll up
+            # 2) Scroll: pinch + swipe (recompute regions after scroll? Optional)
+            scroll_triggered = False
             if gesture_info["swipe_up_trigger"] and gesture_info["is_pinch"]:
                 pyautogui.scroll(-500)          # negative = scroll down
                 self.metrics.log_swipe("down")
+                scroll_triggered = True
             if gesture_info["swipe_down_trigger"] and gesture_info["is_pinch"]:
                 pyautogui.scroll(500)           # positive = scroll up
                 self.metrics.log_swipe("up")
+                scroll_triggered = True
 
-            # 3) Summarize: thumbs up → summarize active region
+            # 3) Summarize: thumbs up → summarize active region (with caching)
             region_index = fusion.should_trigger_summary(
                 gesture_info["thumbs_up_trigger"]
             )
-
             if region_index is not None:
                 region = regions[region_index]
-                t0 = time.time()
-                text = extract_text_from_region(screen_frame, region.bbox)
-                region.text = text
-                region.summary = summarize_text(text)
-                t1 = time.time()
-
-                latency_ms = (t1 - t0) * 1000.0
-                self.metrics.log_summary_latency(latency_ms)
-
-                print(f"[Region {region_index + 1}] OCR text:\n{text}\n")
-                print(f"[Region {region_index + 1}] Summary:\n{region.summary}\n")
-                print(f"Summary latency: {latency_ms:.1f} ms")
-
+                if not region.text:  # Cache: Extract only if not done
+                    t0 = time.time()
+                    text = extract_text_from_region(screen_frame, region.bbox)
+                    region.text = text
+                    region.summary = summarize_text(text)
+                    t1 = time.time()
+                    latency_ms = (t1 - t0) * 1000.0
+                    self.metrics.log_summary_latency(latency_ms)
+                    print(f"[Region {region_index + 1}] OCR text:\n{text}\n")
+                    print(f"[Region {region_index + 1}] Summary:\n{region.summary}\n")
+                    print(f"Summary latency: {latency_ms:.1f} ms")
+                else:
+                    print(f"[Region {region_index + 1}] Using cached summary:\n{region.summary}\n")
+                
                 self.summaryUpdated.emit(region_index, region.summary)
 
             # 4) Clear summary: thumbs down clears current active region
             if gesture_info["thumbs_down_trigger"] and fusion.active_index is not None:
                 idx = fusion.active_index
                 regions[idx].summary = ""
+                regions[idx].text = "" 
                 self.summaryUpdated.emit(idx, "")
 
             # Webcam debug window
