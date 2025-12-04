@@ -9,9 +9,9 @@ from modules.gestures import GestureRecognizer
 from modules.ocr import extract_text_from_region, summarize_text
 from modules.fusion import FusionEngine
 from modules.metrics import MetricsTracker
-from modules.screencap import ScreenCapture 
-from modules.layout import detect_text_regions, create_fallback_regions  
+from modules.layout import detect_text_regions, create_fallback_regions  # Updated: Include fallback
 from modules.calibration import run_calibration, apply_affine
+from modules.screencap import ScreenCapture
 
 
 class ReadingPipeline(QThread):
@@ -133,6 +133,16 @@ class ReadingPipeline(QThread):
                 pyautogui.scroll(500)           # positive = scroll up
                 self.metrics.log_swipe("up")
                 scroll_triggered = True
+            
+            if scroll_triggered:
+                time.sleep(0.5)  # Wait for scroll 
+                new_frame = screen.grab()
+                new_regions = detect_text_regions(new_frame)
+                if new_regions:
+                    regions[:] = new_regions  # Update in-place
+                    fusion.regions = regions
+                    simple_regions = [(r.bbox, r.summary) for r in regions]
+                    self.regionsDefined.emit(simple_regions)  # Re-emit
 
             # 3) Summarize: thumbs up → summarize active region (with caching)
             region_index = fusion.should_trigger_summary(
@@ -160,7 +170,7 @@ class ReadingPipeline(QThread):
             if gesture_info["thumbs_down_trigger"] and fusion.active_index is not None:
                 idx = fusion.active_index
                 regions[idx].summary = ""
-                regions[idx].text = "" 
+                regions[idx].text = ""  # Optional: Clear cache too
                 self.summaryUpdated.emit(idx, "")
 
             # Webcam debug window
