@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt, QRect, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QColor, QPen, QFont
 from PyQt5.QtWidgets import QWidget, QApplication
-
+from collections import deque
 
 class OverlayWidget(QWidget):
     def __init__(self, screen_width, screen_height):
@@ -21,6 +21,7 @@ class OverlayWidget(QWidget):
         self.regions = []       # list of {"rect": QRect, "summary": str}
         self.active_index = -1
         self.gaze_point = None  # QPoint or None
+        self.gaze_trail = deque(maxlen=30)
 
         self._update_timer = QTimer(self)
         self._update_timer.timeout.connect(self.update)
@@ -44,9 +45,12 @@ class OverlayWidget(QWidget):
     def set_gaze(self, gaze_tuple):
         if gaze_tuple is None:
             self.gaze_point = None
+            self.gaze_trail.clear()
         else:
             x, y = gaze_tuple
-            self.gaze_point = QPoint(x, y)
+            p = QPoint(x, y)
+            self.gaze_point = p
+            self.gaze_trail.append(p)
         self.update()
 
     def set_active_region(self, idx):
@@ -85,7 +89,16 @@ class OverlayWidget(QWidget):
             painter.drawText(rect.adjusted(5, 5, -5, -5),
                              Qt.AlignLeft | Qt.AlignTop,
                              f"Region {i+1}")
-
+            # If active region, show hint
+            if i == self.active_index:
+                hint = "Thumbs up: summarize | Thumbs down: clear"
+                painter.setPen(QColor(200, 200, 200))
+                hint_font = QFont("Sans", 9)
+                painter.setFont(hint_font)
+                painter.drawText(rect.adjusted(5, 25, -5, -5),
+                                Qt.AlignLeft | Qt.AlignTop,
+                                hint)
+            # Summary bubble
             summary = r.get("summary", "")
             if summary:
                 bubble_width = int(self.screen_width * 0.3)
@@ -120,13 +133,25 @@ class OverlayWidget(QWidget):
                     painter.drawText(bubble_rect.left() + 10, text_y, line)
                     text_y += 18
 
-        # Gaze indicator
-        if self.gaze_point is not None:
-            painter.setPen(QPen(QColor(255, 0, 0), 3))
-            painter.setBrush(QColor(255, 0, 0, 180))
-            painter.drawEllipse(self.gaze_point, 8, 8)
-            painter.setPen(QColor(255, 0, 0))
-            painter.drawText(self.gaze_point + QPoint(10, 0), "Gaze")
+        # Gaze Indicator
+        if self.gaze_trail:
+            n = len(self.gaze_trail)
+            for i, p in enumerate(self.gaze_trail):
+                # Older points are smaller and more transparent
+                t = (i + 1) / n  # 0..1
+                radius = int(4 + 8 * t)      # 4..12 px
+                alpha = int(40 + 160 * t)    # 40..200
+
+                color = QColor(255, 0, 0, alpha)
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(color)
+                painter.drawEllipse(p, radius, radius)
+
+            # Label at the newest point
+            last_p = self.gaze_trail[-1]
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawText(last_p + QPoint(10, 0), "Gaze")
+
     
     def keyPressEvent(self, event):
         # Exit on ESC key

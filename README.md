@@ -48,14 +48,14 @@ By leveraging webcam input and CV models, the system detects where the user is l
 
 2. Create a virtual Python environment (Python 3.10).
 ```powershell
-python3.10 -m venv .venv
+py -3.10 -m venv .venv
 .venv\Scripts\activate    
 ```
 
 3. Install dependencies:
 
 ```powershell
-python -m pip install opencv-python mediapipe numpy mss pytesseract pyautogui PyQt5 openai
+pip install -r requirements.txt
 ```
 
 4. Make sure `tesseract` is installed and on PATH (or set `pytesseract.pytesseract.tesseract_cmd`).

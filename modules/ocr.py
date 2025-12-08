@@ -1,7 +1,7 @@
 import cv2
 import pytesseract
 import os
-import openai
+import openai 
 from openai import OpenAI
 from collections import Counter
 import re
@@ -11,11 +11,15 @@ def extract_text_from_region(frame, bbox):
     bbox: (x1, y1, x2, y2) in image coordinates
     Returns OCR string with enhanced preprocessing for gradients/colors.
     """
+    # Validate frame
+    if frame is None:
+        return ""
+    
+    h, w = frame.shape[:2]
     x1, y1, x2, y2 = bbox
     x1, y1 = max(0, x1), max(0, y1)
     x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
     roi = frame[y1:y2, x1:x2]
-
     if roi.size == 0:
         return ""
 
@@ -74,7 +78,7 @@ def _openai_summarize(text, api_key):
         ]
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=messages,
             max_tokens=80,
             temperature=0.1

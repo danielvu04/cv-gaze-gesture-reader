@@ -3,6 +3,10 @@ import math
 import mediapipe as mp
 from collections import deque
 
+MIN_SWIPE_DIST = .12 
+MIN_SWIPE_FRAMES = 1
+PINCH_THRESH = 0.05      # normalized distance
+OPEN_PALM_CONF = 0.8 
 
 class GestureRecognizer:
     """
@@ -15,7 +19,7 @@ class GestureRecognizer:
       - open_palm: if all fingers extended
     """
 
-    def __init__(self, pinch_threshold=0.05, history_len=7, swipe_threshold=0.12, exit_threshold=0.1):
+    def __init__(self, pinch_threshold=0.05, history_len=7, swipe_threshold=MIN_SWIPE_DIST, exit_threshold=0.1):
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             max_num_hands=1,
@@ -142,7 +146,7 @@ class GestureRecognizer:
         pinch_trigger = is_pinch and not self.prev_pinch
         self.prev_pinch = is_pinch
 
-        # Swipe detection (same as before)
+        # Swipe detection
         if self.cooldown > 0:
             self.cooldown -= 1
         elif len(self.center_history) >= self.history_len:

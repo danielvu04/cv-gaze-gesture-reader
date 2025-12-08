@@ -47,3 +47,4 @@ tessdata/*
 # Generated data 
 *.txt~
 *.tmp
+session*

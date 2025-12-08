@@ -3,8 +3,10 @@ import cv2
 from typing import List, Tuple, Optional
 from modules.metrics import MetricsTracker
 
-CamPoint = Tuple[int, int]
+CamPoint = Tuple[float, float]
 ScreenPoint = Tuple[int, int]
+
+MAX_SAMPLES = 30
 
 def run_calibration(
     gaze_tracker,
@@ -43,6 +45,9 @@ def run_calibration(
         samples: List[CamPoint] = []
         print(f"Calibration target {idx + 1}/{len(targets)} at ({sx}, {sy})")
 
+        feedback_msg = ""
+        feedback_color = (0, 0, 255)  # red by default
+        
         while True:
             ret_cam, cam_frame = cam_cap.read()
             if not ret_cam:
@@ -51,10 +56,15 @@ def run_calibration(
             gaze_cam = gaze_tracker.process(cam_frame)
             if gaze_cam is not None:
                 samples.append(gaze_cam)
+                if len(samples) > MAX_SAMPLES:
+                    samples.pop(0)
                 gaze_tracker.draw_debug(cam_frame, gaze_cam)
 
+            # Screen-side calibration frame
             calib_frame = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
             cv2.circle(calib_frame, (sx, sy), 25, (0, 255, 0), -1)
+            
+            # Instructions
             cv2.putText(
                 calib_frame,
                 f"Calibration {idx + 1}/{len(targets)}: Look at the dot and press SPACE",
@@ -64,6 +74,29 @@ def run_calibration(
                 (0, 255, 0),
                 2,
             )
+            
+            # Show sample count
+            cv2.putText(
+                calib_frame,
+                f"samples: {len(samples)} / {MAX_SAMPLES}",
+                (50, 100),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (200, 200, 200),
+                2,
+            )
+
+            # Feedback text (too much movement, not enough samples, etc)
+            if feedback_msg:
+                cv2.putText(
+                    calib_frame,
+                    feedback_msg,
+                    (50, screen_height - 80),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    feedback_color,
+                    2,
+                )
 
             cv2.imshow("Calibration - Screen", calib_frame)
             cv2.imshow("Calibration - Webcam", cam_frame)
@@ -71,14 +104,25 @@ def run_calibration(
             key = cv2.waitKey(1) & 0xFF
             if key == ord(' '):
                 if len(samples) > 5:
-                    avg_x = int(sum(p[0] for p in samples) / len(samples))
-                    avg_y = int(sum(p[1] for p in samples) / len(samples))
+                    arr = np.array(samples)
+                    std = arr.std(axis=0)
+                    if std[0] > 0.05 or std[1] > 0.05:   # when using normalized coords
+                        feedback_msg = "Too much eye movement, hold steady and try again."
+                        feedback_color = (0, 0, 255)  # red
+                        samples.clear()
+                        continue
+                    avg_x = float(sum(p[0] for p in samples) / len(samples))
+                    avg_y = float(sum(p[1] for p in samples) / len(samples))
                     cam_points.append((avg_x, avg_y))
                     screen_points.append((sx, sy))
+                    
+                    # Clear feedback and move to next target
                     print(f"Captured {len(samples)} samples. Avg cam gaze: ({avg_x}, {avg_y})")
+                    feedback_msg = ""
                     break
                 else:
-                    print("Not enough samples, keep looking and try again.")
+                    feedback_msg = "Not enough samples, keep looking and try again."
+                    feedback_color = (0, 255, 255)  # yellow
             elif key == ord('q'):
                 print("Calibration aborted.")
                 cv2.destroyWindow("Calibration - Screen")
@@ -114,23 +158,35 @@ def run_calibration(
 
 
 def solve_affine_mapping(cam_points: List[CamPoint], screen_points: List[ScreenPoint]) -> np.ndarray:
-    cam_pts = np.array(cam_points, dtype=np.float32)
+    cam_pts = np.array(cam_points, dtype=np.float32)  # shape (n, 2)
     scr_pts = np.array(screen_points, dtype=np.float32)
 
-    n = cam_pts.shape[0]
+    # Mean-center cam_pts
+    cam_mean = cam_pts.mean(axis=0)
+    cam_pts_centered = cam_pts - cam_mean
+
+    n = cam_pts_centered.shape[0]
     A = np.zeros((2 * n, 6), dtype=np.float32)
     b = np.zeros((2 * n,), dtype=np.float32)
 
-    for i, (cx, cy) in enumerate(cam_pts):
+    for i, (cx, cy) in enumerate(cam_pts_centered):
         sx, sy = scr_pts[i]
-        A[2 * i] = [cx, cy, 1, 0, 0, 0]
+        A[2 * i]     = [cx, cy, 1, 0, 0, 0]
         A[2 * i + 1] = [0, 0, 0, cx, cy, 1]
-        b[2 * i] = sx
+        b[2 * i]     = sx
         b[2 * i + 1] = sy
 
     params, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
     M = params.reshape(2, 3)
-    return M
+
+    # Fold cam_mean into the translation term so caller does not care
+    T = np.eye(3, dtype=np.float32)
+    T[0, 2] = -cam_mean[0]
+    T[1, 2] = -cam_mean[1]
+    M_full = M @ T  # 2x3 * 3x3
+
+    return M_full
+
 
 
 def apply_affine(M: np.ndarray, cam_point: Optional[CamPoint]) -> Optional[ScreenPoint]:

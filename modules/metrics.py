@@ -1,5 +1,5 @@
 # modules/metrics.py
-import time
+import time, os, json
 from dataclasses import dataclass, field
 from typing import List, Optional
 from collections import defaultdict
@@ -9,15 +9,11 @@ from sklearn.metrics import precision_recall_fscore_support
 class MetricsTracker:
     total_pinch_events: int = 0
     pinch_with_active_region: int = 0
-
     total_summaries: int = 0
     summary_latencies_ms: List[float] = field(default_factory=list)
-
     total_swipe_up: int = 0
     total_swipe_down: int = 0
-    
     calibration_errors_px: List[float] = field(default_factory=list)
-
     start_time: float = field(default_factory=time.time)
 
     def log_pinch(self, pinch_region_index: Optional[int], active_region_index: Optional[int]):
@@ -35,13 +31,45 @@ class MetricsTracker:
             self.total_swipe_up += 1
         elif direction == "down":
             self.total_swipe_down += 1
+
     def log_calibration_errors(self, errors_px: List[float]):
         self.calibration_errors_px.extend(errors_px)
+
     def get_runtime(self) -> float:
         return time.time() - self.start_time
 
+    def as_dict(self):
+        return {
+            "calibration_errors_px": self.calibration_errors_px,
+            "summary_latencies_ms": self.summary_latencies_ms,
+            "total_pinch_events": self.total_pinch_events,
+            "pinch_with_active_region": self.pinch_with_active_region,
+            "total_swipe_up": self.total_swipe_up,
+            "total_swipe_down": self.total_swipe_down,
+            "total_summaries": self.total_summaries,
+            "runtime": self.get_runtime(),
+        }
+
+    def save(self, folder="metrics"):
+        os.makedirs(folder, exist_ok=True)
+        ts = int(self.start_time)
+        path = os.path.join(folder, f"session_{ts}.json")
+        with open(path, "w") as f:
+            json.dump(self.as_dict(), f, indent=2)
+        print(f"[Metrics] Saved metrics to {path}")
+
     def report(self) -> str:
+        # calibration
+        if self.calibration_errors_px:
+            n = len(self.calibration_errors_px)
+            avg_err = sum(self.calibration_errors_px) / n
+            max_err = max(self.calibration_errors_px)
+        else:
+            avg_err = 0.0
+            max_err = 0.0
+
         runtime = self.get_runtime()
+
         if self.total_pinch_events > 0:
             pinch_align_rate = self.pinch_with_active_region / self.total_pinch_events
         else:
@@ -51,14 +79,6 @@ class MetricsTracker:
             avg_latency = sum(self.summary_latencies_ms) / len(self.summary_latencies_ms)
         else:
             avg_latency = 0.0
-            
-        if self.calibration_errors_px:
-                    n = len(self.calibration_errors_px)
-                    avg_err = sum(self.calibration_errors_px) / n
-                    max_err = max(self.calibration_errors_px)
-        else:
-            avg_err = 0.0
-            max_err = 0.0
 
         lines = [
             "Metrics Report",

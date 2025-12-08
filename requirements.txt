@@ -1,0 +1,9 @@
+opencv-python==4.12.0.88
+mediapipe==0.10.14
+numpy==2.0.2
+mss==10.1.0
+pytesseract==0.3.13
+pyautogui==0.9.54
+PyQt5==5.15.11
+openai==2.9.0
+scikit-learn==1.5.2
