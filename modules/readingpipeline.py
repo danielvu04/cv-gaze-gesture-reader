@@ -27,45 +27,45 @@ class ReadingPipeline(QThread):
         self.running = True
 
         self.smooth_gaze_screen = None  # Initial smoothed point
-        self.alpha = 0.7  # Smoothing factor: 0.0=full lag, 1.0=no smooth (tune 0.6-0.8 for gaze)
+        self.alpha = 0.7  
         self.metrics = MetricsTracker()
 
-        # Track how long open palm has been held (for exit gesture)
+        # Track how long open palm has been held for exit gesture
         self.open_palm_frames = 0
 
     def run(self):
-        # 1. Webcam for gaze + gestures
+        # Webcam for gaze + gestures
         cam_cap = cv2.VideoCapture(0)
         if not cam_cap.isOpened():
             print("Could not open webcam")
             return
 
-        # 2. Discover full screen size
+        # Discover full screen size
         temp_screen = ScreenCapture(self.monitor_index)
         full_frame = temp_screen.grab()
         full_h, full_w, _ = full_frame.shape
         temp_screen.release()
 
-        # 3. Capture from chosen monitor (full frame for now)
+        # Capture from chosen monitor
         screen = ScreenCapture(self.monitor_index)
         screen_frame = screen.grab()
         sh, sw, _ = screen_frame.shape
 
-        # 4. Define ADAPTIVE reading regions + fusion (based on initial OCR)
+        # Define adaptive reading regions + fusion (based on initial OCR)
         regions = detect_text_regions(screen_frame)  # New: Dynamic detection
         if not regions:  # Fallback if no text
             regions = create_fallback_regions(sw, sh)
         fusion = FusionEngine(regions)
 
-        # 5. Initialize trackers
+        # Initialize trackers
         gaze_tracker = GazeTracker()
         gesture_recognizer = GestureRecognizer()
 
-        # Send initial regions to UI (summaries empty)
+        # Send initial regions to UI overlay
         simple_regions = [(r.bbox, r.summary) for r in regions]
         self.regionsDefined.emit(simple_regions)
 
-        # 6. Calibration
+        # Calibration
         M = run_calibration(gaze_tracker, cam_cap, sw, sh, self.metrics)
         if M is None:
             print("Calibration failed or aborted.")
@@ -84,23 +84,22 @@ class ReadingPipeline(QThread):
 
             screen_frame = screen.grab()
 
-            # Gaze (unchanged)
+            # Gaze
             gaze_cam = gaze_tracker.process(cam_frame)
             gaze_screen = apply_affine(M, gaze_cam)
             if gaze_screen is not None:
                 if self.smooth_gaze_screen is None:
-                    self.smooth_gaze_screen = gaze_screen  # First point
+                    self.smooth_gaze_screen = gaze_screen 
                 else:
-                    # EMA smoothing
                     prev_x, prev_y = self.smooth_gaze_screen
                     curr_x, curr_y = gaze_screen
                     smooth_x = self.alpha * curr_x + (1 - self.alpha) * prev_x
                     smooth_y = self.alpha * curr_y + (1 - self.alpha) * prev_y
                     self.smooth_gaze_screen = (int(smooth_x), int(smooth_y))
-                fusion.update_gaze(self.smooth_gaze_screen)  # Use smoothed for regions
-                self.gazeUpdated.emit(self.smooth_gaze_screen)  # Emit smoothed to overlay
+                fusion.update_gaze(self.smooth_gaze_screen)  
+                self.gazeUpdated.emit(self.smooth_gaze_screen)  
             else:
-                self.smooth_gaze_screen = None  # Reset on loss
+                self.smooth_gaze_screen = None
                 fusion.update_gaze(None)
                 self.gazeUpdated.emit(None)
 
@@ -110,7 +109,7 @@ class ReadingPipeline(QThread):
             # Gestures
             gesture_info = gesture_recognizer.process(cam_frame)
 
-            # 1) Exit: open palm must be held for N frames (~1 second)
+            # Exit: open palm must be held for N frames
             if gesture_info["open_palm"]:
                 self.open_palm_frames += 1
             else:
@@ -123,7 +122,7 @@ class ReadingPipeline(QThread):
                 QCoreApplication.quit()
                 break
 
-            # 2) Scroll: pinch + swipe (recompute regions after scroll? Optional)
+            # Scroll: pinch + swipe (recompute regions after scroll)
             scroll_triggered = False
             if gesture_info["swipe_up_trigger"] and gesture_info["is_pinch"]:
                 pyautogui.scroll(-500)          # negative = scroll down
@@ -139,18 +138,18 @@ class ReadingPipeline(QThread):
                 new_frame = screen.grab()
                 new_regions = detect_text_regions(new_frame)
                 if new_regions:
-                    regions[:] = new_regions  # Update in-place
+                    regions[:] = new_regions
                     fusion.regions = regions
                     simple_regions = [(r.bbox, r.summary) for r in regions]
-                    self.regionsDefined.emit(simple_regions)  # Re-emit
+                    self.regionsDefined.emit(simple_regions) 
 
-            # 3) Summarize: thumbs up → summarize active region (with caching)
+            # Summarize: thumbs up
             region_index = fusion.should_trigger_summary(
                 gesture_info["thumbs_up_trigger"]
             )
             if region_index is not None:
                 region = regions[region_index]
-                if not region.text:  # Cache: Extract only if not done
+                if not region.text: 
                     t0 = time.time()
                     text = extract_text_from_region(screen_frame, region.bbox)
                     region.text = text
@@ -166,11 +165,11 @@ class ReadingPipeline(QThread):
                 
                 self.summaryUpdated.emit(region_index, region.summary)
 
-            # 4) Clear summary: thumbs down clears current active region
+            # Clear summary: thumbs down clears current active region
             if gesture_info["thumbs_down_trigger"] and fusion.active_index is not None:
                 idx = fusion.active_index
                 regions[idx].summary = ""
-                regions[idx].text = ""  # Optional: Clear cache too
+                regions[idx].text = ""  
                 self.summaryUpdated.emit(idx, "")
 
             # Webcam debug window

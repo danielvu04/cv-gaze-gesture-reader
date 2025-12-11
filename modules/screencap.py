@@ -6,7 +6,7 @@ import cv2
 class ScreenCapture:
     """
     Simple full-screen capture using mss.
-    Captures the primary monitor and returns a BGR frame (like a camera frame).
+    Captures the primary monitor and returns a BGR frame.
     """
 
     def __init__(self, monitor_index=1):

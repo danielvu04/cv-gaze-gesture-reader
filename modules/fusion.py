@@ -14,7 +14,7 @@ class FusionEngine:
     """
     Handles:
       - which paragraph region the gaze is on
-      - when a trigger (e.g. thumbs-up) should cause OCR + summarization
+      - when a trigger (thumbs-up) should cause OCR + summarization
     """
 
     def __init__(self, regions: List[Region]):
@@ -22,9 +22,7 @@ class FusionEngine:
         self.active_index: Optional[int] = None
 
     def update_gaze(self, gaze_point):
-        """
-        Update active region index based on gaze_point (x, y).
-        """
+        #Update active region index based on gaze_point (x, y)
         if gaze_point is None:
             self.active_index = None
             return
@@ -38,9 +36,7 @@ class FusionEngine:
                 break
 
     def should_trigger_summary(self, trigger: bool) -> Optional[int]:
-        """
-        Returns region index if a summary should be computed now.
-        """
+        #Returns region index if a summary should be computed
         if trigger and self.active_index is not None:
             return self.active_index
         return None

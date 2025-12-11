@@ -142,7 +142,7 @@ class GestureRecognizer:
         pinch_trigger = is_pinch and not self.prev_pinch
         self.prev_pinch = is_pinch
 
-        # Swipe detection (same as before)
+        # Swipe detection
         if self.cooldown > 0:
             self.cooldown -= 1
         elif len(self.center_history) >= self.history_len:

@@ -18,9 +18,9 @@ class OverlayWidget(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.showFullScreen()
 
-        self.regions = []       # list of {"rect": QRect, "summary": str}
+        self.regions = []
         self.active_index = -1
-        self.gaze_point = None  # QPoint or None
+        self.gaze_point = None
 
         self._update_timer = QTimer(self)
         self._update_timer.timeout.connect(self.update)

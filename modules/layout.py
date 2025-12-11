@@ -5,19 +5,6 @@ from PIL import Image
 from modules.fusion import Region
 
 def detect_text_regions(frame, min_conf=30, left_margin=0.5, max_regions=5):
-    """
-    Detect adaptive text regions based on OCR word bounding boxes.
-    Clusters words -> lines -> paragraphs using vertical density/gaps.
-    
-    Args:
-        frame: Screen capture (BGR numpy array).
-        min_conf: Min Tesseract confidence for words.
-        left_margin: Fraction of width to consider "reading area" (default: left half).
-        max_regions: Cap number of regions (for UI stability).
-    
-    Returns:
-        List[Region] with bbox and empty text/summary.
-    """
     h, w, _ = frame.shape
     reading_width = int(w * left_margin)
     
@@ -79,7 +66,7 @@ def detect_text_regions(frame, min_conf=30, left_margin=0.5, max_regions=5):
             max_y = max(max(b[1] + b[3] for b in line) for line in current_para)
             bbox = (min_x, min_y, min(max_x, reading_width), max_y)
             
-            # Create region (text extracted later)
+            # Create region
             paragraphs.append(Region(bbox=bbox, text="", summary=""))
             
             current_para = [line_group]

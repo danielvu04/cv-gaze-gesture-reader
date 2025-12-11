@@ -21,9 +21,8 @@ def extract_text_from_region(frame, bbox):
 
     # Split channels and use the one with best contrast (for colored text)
     b, g, r = cv2.split(roi)
-    gray = cv2.max(cv2.max(b, g), r)  # Light text on dark? Or invert if needed
+    gray = cv2.max(cv2.max(b, g), r) 
 
-    # CLAHE for contrast enhancement (good for gradients)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(gray)
 
@@ -50,7 +49,7 @@ def summarize_text(text):
     Skip if text too short.
     """
     if not text or len(text) < 50:
-        return text  # Raw for short text (e.g., titles)
+        return text  # Raw for short text (titles)
 
     api_key = os.getenv('OPENAI_API_KEY')
     if api_key:
@@ -110,7 +109,7 @@ def _extractive_summarize(text, num_sentences=2):
     for i, sent in enumerate(sentences):
         sent_words = re.findall(r'\w+', sent.lower())
         score = sum(freq[w] for w in sent_words)
-        scores[i] = score / max(1, len(sent_words))  # Normalize
+        scores[i] = score / max(1, len(sent_words)) 
 
     # Top sentences in original order
     top_idx = sorted(sorted(scores, key=scores.get, reverse=True)[:num_sentences])

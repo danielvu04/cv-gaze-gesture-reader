@@ -17,7 +17,7 @@ def run_calibration(
     Run multi-point gaze calibration.
 
     Returns:
-        2x3 affine matrix M mapping camera gaze points -> screen coordinates,
+        3x3 affine matrix M mapping camera gaze points to screen coordinates,
         or None if calibration aborted/failed.
     """
 

@@ -80,21 +80,19 @@ class MetricsTracker:
 
 @dataclass
 class GestureMetricsTracker(MetricsTracker):  # Extend existing
-    gesture_gt = defaultdict(list)  # {gesture: [labels]} e.g., 'thumbs_up': [1,0,1,...]
-    gesture_pred = defaultdict(list)  # {gesture: [preds]}
+    gesture_gt = defaultdict(list) 
+    gesture_pred = defaultdict(list)
 
     def log_gesture(self, gesture: str, is_true: int, is_detected: int):
-        """Log per-frame: 1=true/detected, 0=false."""
         self.gesture_gt[gesture].append(is_true)
         self.gesture_pred[gesture].append(is_detected)
 
     def compute_metrics(self) -> dict:
-        """Compute P/R/F1 per gesture; average over support."""
         results = {}
         for gesture in self.gesture_gt:
             y_true = self.gesture_gt[gesture]
             y_pred = self.gesture_pred[gesture]
-            if sum(y_true) == 0:  # No true instances
+            if sum(y_true) == 0:
                 results[gesture] = {'precision': 0, 'recall': 0, 'f1': 0}
             else:
                 p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='binary', zero_division=0)
@@ -109,7 +107,7 @@ class GestureMetricsTracker(MetricsTracker):  # Extend existing
     def report(self) -> str:
         # Extend existing report
         metrics = self.compute_metrics()
-        lines = super().report().split('\n')  # Existing
+        lines = super().report().split('\n') 
         lines.append("Gesture Reliability:")
         for g, res in metrics.items():
             if g != 'macro_avg':

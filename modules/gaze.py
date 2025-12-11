@@ -3,13 +3,11 @@ import mediapipe as mp
 
 
 class GazeTracker:
-    """
-    Gaze tracker using MediaPipe Face Mesh + iris landmarks.
-    """
+    #Gaze tracker using MediaPipe Face Mesh + iris landmarks.
 
     def __init__(self):
         self.mp_face_mesh = mp.solutions.face_mesh
-        # refine_landmarks=True to get iris landmarks
+        # Refine_landmarks to get iris landmarks
         self.mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
@@ -20,10 +18,7 @@ class GazeTracker:
         self.right_iris_indices = [474, 475, 476, 477]
 
     def process(self, frame):
-        """
-        Returns:
-            gaze_point (x, y) in image coordinates, or None if no face.
-        """
+        # Returns gaze_point (x, y) in image coordinates, or None if no face.
         h, w, _ = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = self.mesh.process(rgb)

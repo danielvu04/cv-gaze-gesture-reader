@@ -1,4 +1,4 @@
-# --- Python ---
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -11,26 +11,14 @@ __pycache__/
 env/
 venv/
 
-# Jupyter (if ever used)
-.ipynb_checkpoints/
-
-# --- Build artifacts (PyInstaller, py2exe, cx_Freeze) ---
+# Build artifacts (PyInstaller, py2exe, cx_Freeze) 
 build/
 dist/
 *.spec
 
-# C extensions
-*.so
-*.dll
-*.dylib
-
 # IDE files
 .vscode/
 .idea/
-
-# OS files
-.DS_Store
-Thumbs.db
 
 # Logs
 *.log
